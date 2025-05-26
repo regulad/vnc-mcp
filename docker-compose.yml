@@ -1,0 +1,40 @@
+version: "3.8"
+services:
+  # If you have any databases or other services that your application depends on, add them here.
+  # You should also add a 'depend' clause to your application service so that it doesn't start until the other services are ready.
+  vnc_mcp:
+    image: ghcr.io/regulad/vnc-mcp:latest
+    hostname: "vnc_mcp" # Use this hostname with a reverse proxy like nginx attached to your network
+    build:
+      context: .
+    restart: unless-stopped
+    read_only: true
+    deploy:
+      resources:
+        # Don't allow your container to use an infinite amount of resources
+        limits:
+          cpus: "2"
+          memory: 500M
+    ulimits: # Default ulimits are too low for some applications, and are also platform-specific. Declared explicitly here.
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 524300000 # 500MiB in bytes
+    environment:
+      - TZ=America/New_York # Set your timezone here
+    networks:
+      - default
+    logging: # Don't allow the logs to grow indefinitely
+      options:
+        max-size: 10m # 10 megabytes
+        max-file: "3" # 3 files
+    stdin_open: true # if you don't need stdin, remove this line
+    tty: true # if you don't need a psuedo-tty, remove this line
+networks:
+  default:
+    driver: bridge

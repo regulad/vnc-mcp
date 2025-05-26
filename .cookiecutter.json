@@ -1,0 +1,21 @@
+{
+  "_checkout": null,
+  "_output_dir": "/var/home/regulad/repositories",
+  "_repo_dir": "./cookiecutter-neopy/",
+  "_template": "./cookiecutter-neopy/",
+  "author": "Parker Wahle",
+  "copyright_year": "2025",
+  "description": "\ud83e\udd16\ud83d\udda5 vnc-mcp allows MCP-compatible LLMs to interact with any desktop accessible over VNC",
+  "development_status": "Development Status :: 1 - Planning",
+  "email": "regulad@regulad.xyz",
+  "enforce_checks_on_creation": true,
+  "environ_prefix": "VNCMCP_",
+  "friendly_name": "vnc-mcp",
+  "github_user": "regulad",
+  "initialize_git": true,
+  "license": "AGPL-3.0-or-later",
+  "line_length": "100",
+  "package_name": "vnc_mcp",
+  "project_name": "vnc-mcp",
+  "version": "0.1.0"
+}
