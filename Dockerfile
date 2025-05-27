@@ -1,7 +1,9 @@
 # https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker/54763270#54763270
 # Copyright (c) 2023  Parker Wahle - Licensed under MIT License (do whatever you want)
 
-FROM python:3.11.4-alpine3.18 AS base
+# Please note that this only pegs Python 3.12. It is very possible that a later patch version of 3.12 causes some
+# breaking API changes.
+FROM python:3.12-alpine AS base
 
 # In Python, the line between a compile-time and run-time dependency is blurry,
 # so we play it safe by installing everything
@@ -23,7 +25,7 @@ ENV PYTHONHASHSEED=random
 ENV PIP_NO_CACHE_DIR=off
 ENV PIP_DISABLE_PIP_VERSION_CHECK=on
 ENV PIP_DEFAULT_TIMEOUT=120
-ENV POETRY_VERSION=1.5.1
+ENV POETRY_VERSION=2.1.3
 
 # Install system deps
 RUN pip install "poetry==$POETRY_VERSION"

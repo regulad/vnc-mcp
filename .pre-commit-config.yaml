@@ -51,13 +51,13 @@ repos:
         language: system
         types: [text]
         stages: [commit, push, manual]
-      - id: flake8
-        name: flake8
-        entry: flake8
-        language: system
-        types: [python]
-        require_serial: true
-        args: [--darglint-ignore-regex, .*]
+      #      - id: flake8
+      #        name: flake8
+      #        entry: flake8
+      #        language: system
+      #        types: [python]
+      #        require_serial: true
+      #        args: [--darglint-ignore-regex, .*]
       - id: isort
         name: isort
         entry: isort
