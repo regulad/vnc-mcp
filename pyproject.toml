@@ -10,6 +10,11 @@ repository = "https://github.com/regulad/vnc-mcp"
 documentation = "https://vnc-mcp.readthedocs.io"
 classifiers = [
     "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 [tool.poetry.urls]
