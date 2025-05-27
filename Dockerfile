@@ -3,12 +3,16 @@
 
 # Please note that this only pegs Python 3.12. It is very possible that a later patch version of 3.12 causes some
 # breaking API changes.
-FROM python:3.12-alpine AS base
+FROM python:3.12-slim-bookworm AS base
+
+# debian is used over alpine because google tesseract is not available in the alpine repositories, and I don't want to
+# write an apk build script to compile it myself.
 
 # In Python, the line between a compile-time and run-time dependency is blurry,
 # so we play it safe by installing everything
-RUN apk add -U tzdata --no-cache \
-    && apk add gcc musl-dev libffi-dev openssl-dev make git curl --no-cache \
+RUN apt-get update \
+    && apt-get install -y tzdata gcc libc6-dev libffi-dev libssl-dev ca-certificates make git curl libtesseract-dev libtesseract5 tesseract-ocr tesseract-ocr-all \
+    && rm -rf /var/lib/apt/lists/* \
     && pip install --upgrade pip
 
 # --------------------------------------
@@ -69,8 +73,8 @@ ARG USERNAME=vnc_mcp
 ARG USER_UID=1008
 ARG USER_GID=$USER_UID
 
-RUN addgroup -g $USER_GID -S $USERNAME \
-    && adduser -u $USER_UID -G $USERNAME -D -S $USERNAME
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID --shell /bin/sh --create-home $USERNAME
 
 # Switch to non-root user (for security)
 # This makes dockerfile_lint complain, but it's fine

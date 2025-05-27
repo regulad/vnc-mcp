@@ -40,6 +40,7 @@ mcp = "^1.9.1"
 anyio = "^4.9.0"
 uvloop = "^0.21.0"
 #envwrap = {git = "https://github.com/regulad/envwrap.git", rev = "333e2ee1d7b2e42c2740be874e8b0c0d93998ae9"}
+pytesseract = "^0.3.13"
 
 [tool.poetry.group.dev.dependencies]
 Pygments = "^2.10.0"

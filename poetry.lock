@@ -1290,7 +1290,7 @@ version = "23.1"
 description = "Core utilities for Python packages"
 optional = false
 python-versions = ">=3.7"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "packaging-23.1-py3-none-any.whl", hash = "sha256:994793af429502c4ea2ebf6bf664629d07c1a9fe974af92966e4b8d2df7edc61"},
     {file = "packaging-23.1.tar.gz", hash = "sha256:a392980d2b6cffa644431898be54b0045151319d1e7ec34f0cfed48767dd334f"},
@@ -1800,6 +1800,22 @@ files = [
     {file = "pyinstaller-hooks-contrib-2023.7.tar.gz", hash = "sha256:0c436a4c3506020e34116a8a7ddfd854c1ad6ddca9a8cd84500bd6e69c9e68f9"},
     {file = "pyinstaller_hooks_contrib-2023.7-py2.py3-none-any.whl", hash = "sha256:3c10df14c0f71ab388dfbf1625375b087e7330d9444cbfd2b310ba027fa0cff0"},
 ]
+
+[[package]]
+name = "pytesseract"
+version = "0.3.13"
+description = "Python-tesseract is a python wrapper for Google's Tesseract-OCR"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "pytesseract-0.3.13-py3-none-any.whl", hash = "sha256:7a99c6c2ac598360693d83a416e36e0b33a67638bb9d77fdcac094a3589d4b34"},
+    {file = "pytesseract-0.3.13.tar.gz", hash = "sha256:4bf5f880c99406f52a3cfc2633e42d9dc67615e69d8a509d74867d3baddb5db9"},
+]
+
+[package.dependencies]
+packaging = ">=21.3"
+Pillow = ">=8.0.0"
 
 [[package]]
 name = "pytest"
@@ -2702,4 +2718,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11,<3.13"
-content-hash = "6174d8a201166697cfb75cd855ed6c04c3d3080a4a6585eb845420572e407f4f"
+content-hash = "93d6ee3478789ecb07652ab628fd5ef691cb9290cfc96965cf8863061f92e21c"

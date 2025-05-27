@@ -23,12 +23,14 @@
 
 - Connects to any [RFC6143](https://datatracker.ietf.org/doc/html/rfc6143) RFB spec-compliant VNC server using [`pyvnc`](https://github.com/regulad/pyvnc).
 - Exposes a number of MCP tools that an LLM can use to interact with a computer through the VNC client.
+- OCR for screen reading and text extraction, offering much better integration with non-multimodal LLMs. (Support for all languages unfortunately makes the image pretty huge...)
 
 ## Requirements
 
 - A VNC server that is [RFC6143](https://datatracker.ietf.org/doc/html/rfc6143) RFB spec-compliant.
 - A VNC server that supports spec-compliant authentication (not sure which RFC this aligns with). This means ARD (Apple Remote Desktop) servers are not supported. Mac users should consider using the project https://github.com/baryhuang/mcp-remote-macos-use instead.
 - (Optional) A VNC server that reuses your existing desktop session so you can see the actions an LLM is making and collaborate with it. This project was tested with [`krfb`](https://github.com/KDE/krfb), the preferred VNC server for both X11 and Wayland KDE sessions. It should be built into most KDE distros (I use Fedora 42 Kinoite). It may work with other DEs, but I am unsure. GNOME should also have a built-in VNC server. Windows (ew) users may have to experiment with alternative clients like TightVNC and TigerVNC. My experience with desktop-sharing VNC servers on this platform is not good. I would either suggest using RDP or switching to a Linux distribution with KDE or Gnome as a DE.
+- (Optional) A graphics-accelerated VM running KDE/another DE with a same-session VNC server. Having a VM is preferred because then your AI UI will not have access to itself, which can cause frustration as you wrestle the mouse away from your LLM in order to see its output. **NOTE:** if you want to use Qemu virtio OpenGL acceleration, make sure you do NOT have the proprietary Nvidia drivers installed. They will prohibit you from starting a VM with OpenGL acceleration. This is not a problem on MacOS if you are starting a VM through UTM, as virtio should work perfectly there with Metal.
 
 VNC is used as opposed to RDP for two reasons:
 

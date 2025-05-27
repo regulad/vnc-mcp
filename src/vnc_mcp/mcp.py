@@ -10,6 +10,7 @@ from __future__ import annotations
 from io import BytesIO
 
 import numpy as np
+import pytesseract
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Image as MCPImage
 from PIL import Image as PILImage
@@ -20,6 +21,10 @@ from pyvnc import Rect
 from .utils.asyncio import make_async
 
 
+# In testing, I tried to use relative coordinates, but the model I tested with (Claude 4 Opus) did not work well with them. It automatically tried to use absolute coordinates.
+RELATIVE_COORDINATE_MODE = False
+
+
 @make_async
 def _convert_rgba_np_ndarray_to_mcpimage(array: np.ndarray) -> MCPImage:
     pilimage = PILImage.fromarray(array, "RGBA")
@@ -28,6 +33,12 @@ def _convert_rgba_np_ndarray_to_mcpimage(array: np.ndarray) -> MCPImage:
         bio.seek(0)
         image_png_bytes = bio.read()
         return MCPImage(data=image_png_bytes, format="png")
+
+
+@make_async
+def _convert_rgba_np_ndarray_to_string(array: np.ndarray, *, lang: str = "eng") -> str:
+    pilimage = PILImage.fromarray(array, "RGBA")
+    return pytesseract.image_to_string(pilimage, lang=lang)
 
 
 def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
@@ -58,7 +69,11 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         This resolution should be used for all calls to tools that take a resolution or position.
         """
 
-        relative_resolution = vnc_client.get_relative_resolution()
+        if RELATIVE_COORDINATE_MODE:
+            relative_resolution = vnc_client.get_relative_resolution()
+        else:
+            relative_resolution = Point(vnc_client.rect.width, vnc_client.rect.height)
+
         return f"{relative_resolution[0]}x{relative_resolution[1]}"
 
     #     Whole screen image
@@ -79,6 +94,23 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         raw_rgba_array = await vnc_client.capture()
         return await _convert_rgba_np_ndarray_to_mcpimage(raw_rgba_array)
 
+    @mcp_server.tool()
+    async def get_text_from_whole_screen_image(lang: str = "eng") -> str:
+        """
+        Gets the text from the entire VNC session's workspace image using OCR.
+
+        If you are only interested in a certain subrectangle of the workspace,
+        consider using the get_text_from_rectangle_of_screen method.
+
+        Please note that the resolution of the image does not match the resolution that is used to select points
+        on the workspace.
+
+        Please use get_screen_resolution to get the actual "relative" workspace resolution.
+        """
+
+        raw_rgba_array = await vnc_client.capture()
+        return await _convert_rgba_np_ndarray_to_string(raw_rgba_array, lang=lang)
+
     #     Relative rectangle image
     @mcp_server.tool()
     async def get_rectangle_of_screen(
@@ -97,8 +129,28 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         """
 
         rect = Rect(top_left_x, top_left_y, width, height)
-        raw_rgba_array = await vnc_client.capture(rect, relative=True)
+        raw_rgba_array = await vnc_client.capture(rect, relative=RELATIVE_COORDINATE_MODE)
         return await _convert_rgba_np_ndarray_to_mcpimage(raw_rgba_array)
+
+    @mcp_server.tool()
+    async def get_text_from_rectangle_of_screen(
+        top_left_x: int, top_left_y: int, width: int, height: int, lang: str = "eng"
+    ) -> str:
+        """
+        Gets the text from a subrectangle of the VNC workspace image using OCR.
+
+        If you would like to get a picture of the entire screen, you should use the get_whole_screen_image tool.
+
+        The coordinates passed into this method are "relative," and use the same coordinate system as other calls.
+
+        To get the actual "relative" workspace resolution, use get_screen_resolution.
+
+        Getting a screenshot of a suberectangle is more performant than getting a screenshot of the entire workspace, and should be preferred where possible.
+        """
+
+        rect = Rect(top_left_x, top_left_y, width, height)
+        raw_rgba_array = await vnc_client.capture(rect, relative=RELATIVE_COORDINATE_MODE)
+        return await _convert_rgba_np_ndarray_to_string(raw_rgba_array, lang=lang)
 
     #     Strike key(s)
     @mcp_server.tool()
@@ -349,8 +401,8 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         """
 
         async with vnc_client.hold_mouse(mouse_button_to_hold):
-            await vnc_client.move(Point(start_x, start_y), relative=True)
-            await vnc_client.move(Point(end_x, end_y), relative=True)
+            await vnc_client.move(Point(start_x, start_y), relative=RELATIVE_COORDINATE_MODE)
+            await vnc_client.move(Point(end_x, end_y), relative=RELATIVE_COORDINATE_MODE)
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding mouse button {mouse_button_to_hold}"
 
@@ -370,8 +422,8 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         """
 
         async with vnc_client.hold_key(*keys_to_hold):
-            await vnc_client.move(Point(start_x, start_y), relative=True)
-            await vnc_client.move(Point(end_x, end_y), relative=True)
+            await vnc_client.move(Point(start_x, start_y), relative=RELATIVE_COORDINATE_MODE)
+            await vnc_client.move(Point(end_x, end_y), relative=RELATIVE_COORDINATE_MODE)
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding keys {', '.join(keys_to_hold)}"
 
@@ -404,8 +456,8 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         async with vnc_client.hold_mouse(mouse_button_to_hold):
             async with vnc_client.hold_key(*keys_to_hold):
-                await vnc_client.move(Point(start_x, start_y), relative=True)
-                await vnc_client.move(Point(end_x, end_y), relative=True)
+                await vnc_client.move(Point(start_x, start_y), relative=RELATIVE_COORDINATE_MODE)
+                await vnc_client.move(Point(end_x, end_y), relative=RELATIVE_COORDINATE_MODE)
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding keys {', '.join(keys_to_hold)} and mouse button {mouse_button_to_hold}"
 
@@ -422,7 +474,7 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         In order to click on a specific point on the screen, you should use this tool to move the mouse to the desired position and then use the click_at_current_position tool.
         """
 
-        await vnc_client.move(Point(x, y), relative=True)
+        await vnc_client.move(Point(x, y), relative=RELATIVE_COORDINATE_MODE)
         return f"Successfully moved mouse to ({x}, {y})"
 
     #     Click (n) times at current position
