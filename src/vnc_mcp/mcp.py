@@ -14,6 +14,7 @@ from mcp.server import FastMCP
 from mcp.server.fastmcp import Image as MCPImage
 from PIL import Image as PILImage
 from pyvnc import AsyncVNCClient
+from pyvnc import Point
 from pyvnc import Rect
 
 from .utils.asyncio import make_async
@@ -348,8 +349,8 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         """
 
         async with vnc_client.hold_mouse(mouse_button_to_hold):
-            await vnc_client.move((start_x, start_y), relative=True)
-            await vnc_client.move((end_x, end_y), relative=True)
+            await vnc_client.move(Point(start_x, start_y), relative=True)
+            await vnc_client.move(Point(end_x, end_y), relative=True)
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding mouse button {mouse_button_to_hold}"
 
@@ -369,8 +370,8 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         """
 
         async with vnc_client.hold_key(*keys_to_hold):
-            await vnc_client.move((start_x, start_y), relative=True)
-            await vnc_client.move((end_x, end_y), relative=True)
+            await vnc_client.move(Point(start_x, start_y), relative=True)
+            await vnc_client.move(Point(end_x, end_y), relative=True)
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding keys {', '.join(keys_to_hold)}"
 
@@ -403,8 +404,8 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         async with vnc_client.hold_mouse(mouse_button_to_hold):
             async with vnc_client.hold_key(*keys_to_hold):
-                await vnc_client.move((start_x, start_y), relative=True)
-                await vnc_client.move((end_x, end_y), relative=True)
+                await vnc_client.move(Point(start_x, start_y), relative=True)
+                await vnc_client.move(Point(end_x, end_y), relative=True)
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding keys {', '.join(keys_to_hold)} and mouse button {mouse_button_to_hold}"
 
@@ -421,7 +422,7 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         In order to click on a specific point on the screen, you should use this tool to move the mouse to the desired position and then use the click_at_current_position tool.
         """
 
-        await vnc_client.move((x, y), relative=True)
+        await vnc_client.move(Point(x, y), relative=True)
         return f"Successfully moved mouse to ({x}, {y})"
 
     #     Click (n) times at current position
