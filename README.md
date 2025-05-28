@@ -23,6 +23,8 @@
 
 https://github.com/user-attachments/assets/5eff0be6-81f4-4baf-ad67-2f68041a022a
 
+> Claude 4 Opus getting comfortable in a Kubuntu X11 session. The real limit to this application of LLMs is now the speed of LLMs: it is possible they could be better at this task if they had reinforcement learning to more efficiently decode embeddings or prefer OCR at all times.
+
 ## Features
 
 - Connects to any [RFC6143](https://datatracker.ietf.org/doc/html/rfc6143) RFB spec-compliant VNC server using [`pyvnc`](https://github.com/regulad/pyvnc).
