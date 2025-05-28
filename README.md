@@ -21,7 +21,7 @@
 
 🤖🖥 vnc-mcp allows MCP-compatible LLMs to interact with any desktop accessible over VNC
 
-![Demo](./demo.mp4)
+![Demo](https://github.com/user-attachments/assets/5eff0be6-81f4-4baf-ad67-2f68041a022a)
 
 ## Features
 
