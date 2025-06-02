@@ -3,7 +3,7 @@
 
 # Please note that this only pegs Python 3.12. It is very possible that a later patch version of 3.12 causes some
 # breaking API changes.
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.13-slim-bookworm AS base
 
 # debian is used over alpine because google tesseract is not available in the alpine repositories, and I don't want to
 # write an apk build script to compile it myself.
