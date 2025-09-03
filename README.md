@@ -35,6 +35,7 @@ The following DEs and VNC servers have been tested in a VM with `virgl` accelera
 - ❌ Fedora 42 KDE - VNC server raised by krfb does not work, only shows a black screen with no resolution. krdp is no better: only shows a white screen. It is possible this may be an artifact of my VM setup, but I cannot be sure.
 - ❔ Ubuntu 24.04 (Gnome)
 - ✅ Kubuntu 24.04 (KDE) - Krfb had to be downloaded from the Ubuntu repositories, but it works fine. Only worked with unattended access. Possibly works because it uses x11 instead of Wayland.
+- ✅ Windows 11 w/ TightVNC 2.8.85 - Tested on bare metal and Hyper-V. Claude had to click anywhere in the desktop to get a picture. The first poll was always black, but worked as expected afterward!
 
 VNC is used as opposed to RDP for two reasons:
 
