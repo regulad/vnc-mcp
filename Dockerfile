@@ -10,9 +10,10 @@ FROM python:3.12-slim-bookworm AS base
 
 # In Python, the line between a compile-time and run-time dependency is blurry,
 # so we play it safe by installing everything
-RUN apt-get update \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
     && apt-get install -y tzdata gcc libc6-dev libffi-dev libssl-dev ca-certificates make git curl libtesseract-dev libtesseract5 tesseract-ocr tesseract-ocr-all \
-    && rm -rf /var/lib/apt/lists/* \
     && pip install --upgrade pip
 
 # --------------------------------------
@@ -43,8 +44,9 @@ COPY . /code
 # Install with poetry
 # pip install would probably work, too, but we'd have to make sure it's a recent enough pip
 # Don't bother creating a virtual env -- significant performance increase
-RUN poetry config virtualenvs.create false \
-  && poetry install --no-interaction --no-ansi --only main
+RUN --mount=type=cache,target=/root/.cache/pypoetry \
+    poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --only main
 
 # Build the package
 RUN poetry build
@@ -69,25 +71,22 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONHASHSEED=random
 ENV TZ=America/New_York
 
-ARG USERNAME=vnc_mcp
-ARG USER_UID=1008
-ARG USER_GID=$USER_UID
-
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID --shell /bin/sh --create-home $USERNAME
+RUN groupadd --gid 1008 vnc_mcp \
+    && useradd --uid 1008 --gid 1008 --shell /bin/sh --create-home vnc_mcp
 
 # Switch to non-root user (for security)
 # This makes dockerfile_lint complain, but it's fine
 # dockerfile_lint - ignore
-USER $USERNAME
-ENV PATH="/home/$USERNAME/.local/bin:${PATH}"
+USER vnc_mcp
+ENV PATH="/home/vnc_mcp/.local/bin:${PATH}"
 
 # Install the package in the user space
 COPY --from=builder /code/dist/vnc_mcp-*.whl /tmp/
-RUN pip install --user /tmp/vnc_mcp-*.whl
+RUN --mount=type=cache,target=/home/vnc_mcp/.cache/pip,uid=1008,gid=1008 \
+    pip install --user /tmp/vnc_mcp-*.whl
 
 # Now do something!
-CMD ["vnc-mcp"]
+ENTRYPOINT ["vnc-mcp"]
 
 # or expose a port:
 # EXPOSE 8080/tcp

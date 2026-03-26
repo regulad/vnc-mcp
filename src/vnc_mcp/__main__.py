@@ -15,7 +15,6 @@ from typing import Optional
 import typer
 
 # from envwrap import envwrap
-from pyvnc import AsyncVNCClient
 from pyvnc import VNCConfig
 from typer import Argument
 from typer import Option
@@ -28,17 +27,6 @@ cli = typer.Typer()
 
 
 @cli.command()
-# envwrap was born out of typer's env helpers, we don't need it since typer can take environment variables
-# @envwrap(
-#     "VNCMCP_",
-#     {
-#         "host": str,
-#         "port": int,
-#         "timeout": float,
-#         "username": str,  # types doesn't take unions, only the "processed" type used to convert
-#         "password": str
-#     }
-# )
 @make_sync
 async def main(
     *,
@@ -66,6 +54,14 @@ async def main(
             "timeout to accommodate waiting for the user.",
         ),
     ] = 5.0,
+    password: Annotated[
+        Optional[str],
+        Option(
+            envvar="VNCMCP_PASSWORD",
+            show_envvar=True,
+            help="Password that will be used to authenticate with the server if an authentication challenge is presented.",
+        ),
+    ] = None,
     username: Annotated[
         Optional[str],
         Option(
@@ -73,14 +69,6 @@ async def main(
             show_envvar=True,
             help="Username that will be used if the VNC server asks for a username. "
             "If your VNC server does not for a username and only asks for a password, only specify the password.",
-        ),
-    ] = None,
-    password: Annotated[
-        Optional[str],
-        Option(
-            envvar="VNCMCP_PASSWORD",
-            show_envvar=True,
-            help="Password that will be used to authenticate with the server if an authentication challenge is presented.",
         ),
     ] = None,
 ) -> None:
@@ -95,13 +83,10 @@ async def main(
         port=port,
         username=username,
         password=password,
-        timeout=timeout,
     )
-    vnc_server = await AsyncVNCClient.connect(vnc_config)
-    async with vnc_server:
-        mcp_server = create_mcp_server(vnc_server)
-        # enter the main loop of the MCP server
-        await mcp_server.run_stdio_async()
+    mcp_server = await create_mcp_server(vnc_config)
+    # enter the main loop of the MCP server
+    await mcp_server.run_stdio_async()
 
 
 if __name__ == "__main__":  # pragma: no cover

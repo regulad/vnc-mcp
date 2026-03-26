@@ -1,12 +1,13 @@
 """vnc-mcp
 
-Copyright (C) 2025  Parker Wahle
+Copyright (C) 2025 Parker Wahle
 
 SPDX-License-Identifier: AGPL-3.0-or-later
 """  # noqa: E501, B950, D415
 
 from __future__ import annotations
 
+import logging
 from io import BytesIO
 
 import numpy as np
@@ -14,15 +15,15 @@ import pytesseract
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Image as MCPImage
 from PIL import Image as PILImage
-from pyvnc import AsyncVNCClient
+from pyvnc import VNCConfig
+from pyvnc import VNCClient as AsyncVNCClient
 from pyvnc import Point
 from pyvnc import Rect
 
 from .utils.asyncio import make_async
 
 
-# In testing, I tried to use relative coordinates, but the model I tested with (Claude 4 Opus) did not work well with them. It automatically tried to use absolute coordinates.
-RELATIVE_COORDINATE_MODE = False
+logger = logging.getLogger(__package__)
 
 
 @make_async
@@ -32,6 +33,10 @@ def _convert_rgba_np_ndarray_to_mcpimage(array: np.ndarray) -> MCPImage:
         pilimage.save(bio, "png")
         bio.seek(0)
         image_png_bytes = bio.read()
+        if len(image_png_bytes) > 1_000_000:  # decimal size
+            logger.warning(
+                "An image with a size over 1MB was detected. Claude Desktop may complain!"
+            )
         return MCPImage(data=image_png_bytes, format="png")
 
 
@@ -41,10 +46,11 @@ def _convert_rgba_np_ndarray_to_string(array: np.ndarray, *, lang: str = "eng") 
     return pytesseract.image_to_string(pilimage, lang=lang)
 
 
-def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
+async def create_mcp_server(vnc_config: VNCConfig) -> FastMCP:
     """
     Creates a final FastMCP server initialized with the created AsyncVNCClient.
     """
+    vnc_client = await AsyncVNCClient.connect(vnc_config)
 
     mcp_server = FastMCP(
         "VNC Client",
@@ -58,9 +64,9 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
     # According to Claude (funny, I know), only tools should be used for this application.
     # I doubt anybody will be using this tool with anything besides claude. mcphost might support resources, but I doubt it.
 
-    #     Get screen resolution
+    # Get screen resolution
     @mcp_server.tool()
-    def get_screen_resolution() -> str:
+    async def get_screen_resolution() -> str:
         """
         Returns a string containing the width times height of the VNC session's workspace.
 
@@ -68,15 +74,17 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         This resolution should be used for all calls to tools that take a resolution or position.
         """
-
-        if RELATIVE_COORDINATE_MODE:
-            relative_resolution = vnc_client.get_relative_resolution()
-        else:
-            relative_resolution = Point(vnc_client.rect.width, vnc_client.rect.height)
-
+        relative_resolution = Point(vnc_client.rect.width, vnc_client.rect.height)
         return f"{relative_resolution[0]}x{relative_resolution[1]}"
 
-    #     Whole screen image
+    @mcp_server.tool()
+    async def get_desktop_name() -> str:
+        """
+        Returns the name of the current environment reported by the server.
+        """
+        return vnc_client.desktop_name
+
+    # Whole screen image
     @mcp_server.tool()
     async def get_whole_screen_image() -> MCPImage:
         """
@@ -84,13 +92,7 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         If you are only interested in a certain subrectangle of the workspace,
         consider using the get_rectangle_of_screen method.
-
-        Please note that the resolution of the image does not match the resolution that is used to select points
-        on the workspace.
-
-        Please use get_screen_resolution to get the actual "relative" workspace resolution.
         """
-
         raw_rgba_array = await vnc_client.capture()
         return await _convert_rgba_np_ndarray_to_mcpimage(raw_rgba_array)
 
@@ -101,17 +103,11 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         If you are only interested in a certain subrectangle of the workspace,
         consider using the get_text_from_rectangle_of_screen method.
-
-        Please note that the resolution of the image does not match the resolution that is used to select points
-        on the workspace.
-
-        Please use get_screen_resolution to get the actual "relative" workspace resolution.
         """
-
         raw_rgba_array = await vnc_client.capture()
         return await _convert_rgba_np_ndarray_to_string(raw_rgba_array, lang=lang)
 
-    #     Relative rectangle image
+    # Relative rectangle image
     @mcp_server.tool()
     async def get_rectangle_of_screen(
         top_left_x: int, top_left_y: int, width: int, height: int
@@ -121,15 +117,10 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         If you would like to get a picture of the entire screen, you should use the get_whole_screen_image tool.
 
-        The coordinates passed into this method are "relative," and use the same coordinate system as other calls.
-
-        To get the actual "relative" workspace resolution, use get_screen_resolution.
-
         Getting a screenshot of a suberectangle is more performant than getting a screenshot of the entire workspace, and should be preferred where possible.
         """
-
         rect = Rect(top_left_x, top_left_y, width, height)
-        raw_rgba_array = await vnc_client.capture(rect, relative=RELATIVE_COORDINATE_MODE)
+        raw_rgba_array = await vnc_client.capture(rect, )
         return await _convert_rgba_np_ndarray_to_mcpimage(raw_rgba_array)
 
     @mcp_server.tool()
@@ -141,18 +132,13 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         If you would like to get a picture of the entire screen, you should use the get_whole_screen_image tool.
 
-        The coordinates passed into this method are "relative," and use the same coordinate system as other calls.
-
-        To get the actual "relative" workspace resolution, use get_screen_resolution.
-
         Getting a screenshot of a suberectangle is more performant than getting a screenshot of the entire workspace, and should be preferred where possible.
         """
-
         rect = Rect(top_left_x, top_left_y, width, height)
-        raw_rgba_array = await vnc_client.capture(rect, relative=RELATIVE_COORDINATE_MODE)
+        raw_rgba_array = await vnc_client.capture(rect, )
         return await _convert_rgba_np_ndarray_to_string(raw_rgba_array, lang=lang)
 
-    #     Strike key(s)
+    # Strike key(s)
     @mcp_server.tool()
     async def strike_keys(keys: list[str]) -> str:
         """
@@ -181,7 +167,7 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         await vnc_client.press(*keys)
         return "Successfully struck " + ", ".join(keys)
 
-    #     Write string
+    # Write string
     @mcp_server.tool()
     async def write_string(
         string: str,
@@ -196,11 +182,10 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         However, it is likely to work in most textboxes. Because if its efficiency, it should be preferred over pressing
         keys and waiting. You may always try it first and then evaluate alternatives.
         """
-
         await vnc_client.write(string)
         return "Successfully typed " + string
 
-    #     Strike key(s) with key(s) held
+    # Strike key(s) with key(s) held
     @mcp_server.tool()
     async def strike_keys_with_keys_held(
         keys_to_strike: list[str],
@@ -230,13 +215,12 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         Keys are released in the reverse order they are input. The final key in the array will always be typed with all
         other keys pressed.
         """
-
         async with vnc_client.hold_key(*keys_to_hold):
             await vnc_client.press(*keys_to_strike)
 
         return f"Successfully struck {', '.join(keys_to_strike)} while holding {', '.join(keys_to_hold)}"
 
-    #     Write string with key(s) held
+    # Write string with key(s) held
     @mcp_server.tool()
     async def write_string_with_keys_held(
         string_to_write: str,
@@ -272,13 +256,12 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         Keys are released in the reverse order they are input. The final key in the array will always be typed with all
         other keys pressed.
         """
-
         async with vnc_client.hold_key(*keys_to_hold):
             await vnc_client.write(string_to_write)
 
         return f"Successfully wrote {string_to_write} while holding {', '.join(keys_to_hold)}"
 
-    #     Strike key(s) with mouse button held
+    # Strike key(s) with mouse button held
     @mcp_server.tool()
     async def strike_keys_with_mouse_button_held(
         keys_to_strike: list[str], mouse_button_to_hold: int
@@ -296,13 +279,12 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         MOUSE_BUTTON_SCROLL_UP = 3
         MOUSE_BUTTON_SCROLL_DOWN = 4
         """
-
         async with vnc_client.hold_mouse(mouse_button_to_hold):
             await vnc_client.press(*keys_to_strike)
 
         return f"Successfully struck {', '.join(keys_to_strike)} while holding mouse button {mouse_button_to_hold}"
 
-    #     Write string with mouse button held
+    # Write string with mouse button held
     @mcp_server.tool()
     async def write_string_with_mouse_button_held(
         string_to_write: str, mouse_button_to_hold: int
@@ -319,13 +301,12 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         MOUSE_BUTTON_SCROLL_UP = 3
         MOUSE_BUTTON_SCROLL_DOWN = 4
         """
-
         async with vnc_client.hold_mouse(mouse_button_to_hold):
             await vnc_client.write(string_to_write)
 
         return f"Successfully wrote {string_to_write} while holding mouse button {mouse_button_to_hold}"
 
-    #     Strike key(s) with mouse button held and key(s) held
+    # Strike key(s) with mouse button held and key(s) held
     @mcp_server.tool()
     async def strike_keys_with_mouse_button_and_keys_held(
         keys_to_strike: list[str],
@@ -347,14 +328,13 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         MOUSE_BUTTON_SCROLL_UP = 3
         MOUSE_BUTTON_SCROLL_DOWN = 4
         """
-
         async with vnc_client.hold_mouse(mouse_button_to_hold):
             async with vnc_client.hold_key(*keys_to_hold):
                 await vnc_client.press(*keys_to_strike)
 
         return f"Successfully struck {', '.join(keys_to_strike)} while holding mouse button {mouse_button_to_hold} and keys {', '.join(keys_to_hold)}"
 
-    #     Write string with mouse button held and key(s) held
+    # Write string with mouse button held and key(s) held
     @mcp_server.tool()
     async def write_string_with_mouse_button_and_keys_held(
         string_to_write: str,
@@ -373,24 +353,19 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         MOUSE_BUTTON_SCROLL_UP = 3
         MOUSE_BUTTON_SCROLL_DOWN = 4
         """
-
         async with vnc_client.hold_mouse(mouse_button_to_hold):
             async with vnc_client.hold_key(*keys_to_hold):
                 await vnc_client.write(string_to_write)
 
         return f"Successfully wrote {string_to_write} while holding mouse button {mouse_button_to_hold} and keys {', '.join(keys_to_hold)}"
 
-    #     Move mouse from (x,y) to (w,z) with mouse button held
+    # Move mouse from (x,y) to (w,z) with mouse button held
     @mcp_server.tool()
     async def move_mouse_with_mouse_button_held(
         start_x: int, start_y: int, end_x: int, end_y: int, mouse_button_to_hold: int
     ) -> str:
         """
         Moves the mouse from (start_x, start_y) to (end_x, end_y) while holding a certain mouse button.
-
-        Please note that the coordinates used are the "relative" coordinates given by the VNC session.
-
-        The workspace resolution can be obtained using the get_screen_resolution tool.
 
         Mouse buttons are as follows:
         MOUSE_BUTTON_LEFT = 0
@@ -399,14 +374,13 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         MOUSE_BUTTON_SCROLL_UP = 3
         MOUSE_BUTTON_SCROLL_DOWN = 4
         """
-
         async with vnc_client.hold_mouse(mouse_button_to_hold):
-            await vnc_client.move(Point(start_x, start_y), relative=RELATIVE_COORDINATE_MODE)
-            await vnc_client.move(Point(end_x, end_y), relative=RELATIVE_COORDINATE_MODE)
+            await vnc_client.move(Point(start_x, start_y), )
+            await vnc_client.move(Point(end_x, end_y), )
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding mouse button {mouse_button_to_hold}"
 
-    #     Move mouse from (x,y) to (w,z) with key(s) held
+    # Move mouse from (x,y) to (w,z) with key(s) held
     @mcp_server.tool()
     async def move_mouse_with_keys_held(
         start_x: int, start_y: int, end_x: int, end_y: int, keys_to_hold: list[str]
@@ -414,20 +388,15 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         """
         Moves the mouse from (start_x, start_y) to (end_x, end_y) while holding a number of keys.
 
-        Please note that the coordinates used are the "relative" coordinates given by the VNC session.
-
-        The workspace resolution can be obtained using the get_screen_resolution tool.
-
         Same rules apply to the modifier keys as the strike_keys_with_keys_held tool.
         """
-
         async with vnc_client.hold_key(*keys_to_hold):
-            await vnc_client.move(Point(start_x, start_y), relative=RELATIVE_COORDINATE_MODE)
-            await vnc_client.move(Point(end_x, end_y), relative=RELATIVE_COORDINATE_MODE)
+            await vnc_client.move(Point(start_x, start_y), )
+            await vnc_client.move(Point(end_x, end_y), )
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding keys {', '.join(keys_to_hold)}"
 
-    #     Move mouse from (x,y) to (w,z) with key(s) and mouse button held
+    # Move mouse from (x,y) to (w,z) with key(s) and mouse button held
     @mcp_server.tool()
     async def move_mouse_with_keys_and_mouse_button_held(
         start_x: int,
@@ -440,10 +409,6 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         """
         Moves the mouse from (start_x, start_y) to (end_x, end_y) while holding a number of keys and a certain mouse button.
 
-        Please note that the coordinates used are the "relative" coordinates given by the VNC session.
-
-        The workspace resolution can be obtained using the get_screen_resolution tool.
-
         Same rules apply to the modifier keys as the strike_keys_with_keys_held tool.
 
         Mouse buttons are as follows:
@@ -453,31 +418,25 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
         MOUSE_BUTTON_SCROLL_UP = 3
         MOUSE_BUTTON_SCROLL_DOWN = 4
         """
-
         async with vnc_client.hold_mouse(mouse_button_to_hold):
             async with vnc_client.hold_key(*keys_to_hold):
-                await vnc_client.move(Point(start_x, start_y), relative=RELATIVE_COORDINATE_MODE)
-                await vnc_client.move(Point(end_x, end_y), relative=RELATIVE_COORDINATE_MODE)
+                await vnc_client.move(Point(start_x, start_y), )
+                await vnc_client.move(Point(end_x, end_y), )
 
         return f"Successfully moved mouse from ({start_x}, {start_y}) to ({end_x}, {end_y}) while holding keys {', '.join(keys_to_hold)} and mouse button {mouse_button_to_hold}"
 
-    #     Move mouse to (x,y)
+    # Move mouse to (x,y)
     @mcp_server.tool()
     async def move_mouse_to(x: int, y: int) -> str:
         """
         Moves the mouse to the coordinates (x, y) in the VNC session's workspace.
 
-        Please note that the coordinates used are the "relative" coordinates given by the VNC session.
-
-        The workspace resolution can be obtained using the get_screen_resolution tool.
-
         In order to click on a specific point on the screen, you should use this tool to move the mouse to the desired position and then use the click_at_current_position tool.
         """
-
-        await vnc_client.move(Point(x, y), relative=RELATIVE_COORDINATE_MODE)
+        await vnc_client.move(Point(x, y), )
         return f"Successfully moved mouse to ({x}, {y})"
 
-    #     Click (n) times at current position
+    # Click (n) times at current position
     @mcp_server.tool()
     async def click_at_current_position(mouse_button: int, n: int) -> str:
         """
@@ -497,12 +456,12 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         The current position is the position of the mouse in the VNC session's workspace.
         """
-
         for _ in range(n):
             await vnc_client.click(mouse_button)
+
         return f"Successfully clicked {n} times at current position"
 
-    #     Click (n) times at current position with key(s) held
+    # Click (n) times at current position with key(s) held
     @mcp_server.tool()
     async def click_at_current_position_with_keys_held(
         mouse_button: int, n: int, keys_to_hold: list[str]
@@ -528,7 +487,6 @@ def create_mcp_server(vnc_client: AsyncVNCClient) -> FastMCP:
 
         The current position is the position of the mouse in the VNC session's workspace.
         """
-
         async with vnc_client.hold_key(*keys_to_hold):
             for _ in range(n):
                 await vnc_client.click(mouse_button)
