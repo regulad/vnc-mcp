@@ -42,15 +42,6 @@ VNC is used as opposed to RDP for two reasons:
 - The RDP protocol is much more difficult to implement and much more computationally expensive.
 - RDP servers (even moreso than most VNC servers) tend to be session-based, meaning that a new desktop environment will be spawned with each new connection. This prevents working collaboratively with an LLM, and obscures the actions the LLM is taking. This is not good, considering the broad access to your computer an LLM will have.
 
-Even still, VNC appears to be on its way out. Work is currently in progress to develop a Python wrapper for [moonlight](https://moonlight-stream.org/), a modern KMS-based streaming server based on the Nvidia Gamestream protocol
-
-Check its progress here:
-
-- [`pymoonlight`](https://github.com/regulad/pymoonlight)
-- [`moonlight-mcp`](https://github.com/regulad/moonlight-mcp)
-
-(psst... if the repositories don't exist yet, it means I haven't started work :p)
-
 ## Installation
 
 Although `vnc-mcp` is a Python package and could theoretically be started with `uvx`, the best way to use it with an MCP client is with a Docker container.
